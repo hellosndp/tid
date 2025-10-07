@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>submit & reveal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .bar {
+      transition: width 600ms cubic-bezier(.2,.9,.3,1);
+      height: 1.1rem;
+      border-radius: 9999px;
+      background: #6366f1; /* default indigo */
+    }
+
+    .grad-1 { background: linear-gradient(90deg,#f6c84c,#eab308); } /* gold */
+    .grad-2 { background: linear-gradient(90deg,#c7d2fe,#6366f1); } /* purple */
+    .grad-3 { background: linear-gradient(90deg,#86efac,#22c55e); } /* green */
+
+    .inline-select::-ms-expand { display: none; }
+
+    .activity-chooser { position: relative; display: inline-block; }
+    .activity-list {
+      position: absolute; top: 110%; left: 0;
+      min-width: 220px; background: white;
+      border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      padding: 8px; z-index: 40;
+    }
+    .activity-item {
+      padding: 8px 10px; border-radius: 6px;
+      cursor: pointer; font-size: 0.95rem;
+    }
+    .activity-item:hover { background: #f3f4f6; }
+    .caret {
+      display:inline-block; transform: translateY(-1px);
+      margin-left: 6px; border-top: 6px solid currentColor;
+      border-left: 6px solid transparent; border-right: 6px solid transparent;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 p-6">
+
+  
+
+  <main class="max-w-4xl mx-auto">
+
+    <!-- Form -->
+    <header class="mb-6 mt-8">
+      <h1 class="text-3xl sm:text-4xl font-semibold text-gray-900 leading-tight text-left">
+        Today, I did
+        <select id="activity"
+          class="inline-select appearance-none bg-transparent text-blue-600 font-bold underline focus:outline-none cursor-pointer mx-2">
+          <option value="">Choose an activity</option>
+        </select>
+        and I am from
+        <select id="country"
+          class="inline-select appearance-none bg-transparent text-green-600 font-bold underline focus:outline-none cursor-pointer mx-2">
+          <option value="">Choose your country</option>
+        </select>.
+      </h1>
+
+      <div class="flex items-center gap-4 mt-4">
+        <button id="submitBtn" class="bg-gray-900 text-white px-5 py-2 rounded-lg text-base hover:bg-gray-800">Submit</button>
+        <button id="resetBtn" class="bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200">Reset Data</button>
+        <p class="text-sm text-gray-600 ml-4">
+          Counts stored locally (demo). Choose both fields and click Submit to see country-wise counts.
+        </p>
+      </div>
+
+      <div id="validation" class="mt-3 text-sm text-red-600 hidden">Please choose both an activity and a country before submitting.</div>
+    </header>
+
+    <!-- Chart area -->
+    <section id="chartPanel" class="bg-white rounded-xl p-6 shadow-sm hidden">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-medium text-gray-800 mb-1">Country counts for:
+            <span class="activity-chooser inline-block">
+              <span id="chosenActivityDisplay" class="text-blue-600 font-semibold cursor-pointer" role="button" tabindex="0"></span>
+              <span class="caret text-blue-600" aria-hidden="true"></span>
+
+              <div id="activityList" class="activity-list hidden" role="menu" aria-hidden="true"></div>
+            </span>
+          </h2>
+
+          <div class="mt-3 text-sm text-gray-600">See how many did the same thing as you today</div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="backBtn" class="text-sm bg-gray-100 px-3 py-2 rounded-md hover:bg-gray-200">Submit another</button>
+          <button id="closeChart" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+        </div>
+      </div>
+
+      <div id="barsContainer" class="space-y-4 mt-6"></div>
+
+      <div id="emptyHint" class="mt-6 text-sm text-gray-500 hidden">
+        No data yet for this activity — be the first to add one!
+      </div>
+    </section>
+
+    <footer class="mt-8 text-sm text-gray-500 text-left">
+      Tip: Replace <code>localStorage</code> with a simple backend API for global aggregation.
+    </footer>
+  </main>
+
+<script>
+const ACTIVITIES = [
+  "Walk",
+  "Run",
+  "Kiss",
+  "Workout",
+  "Read"
+];
+const COUNTRIES = ["India", "USA", "Japan", "Germany", "Brazil"];
+const STORAGE_KEY = "todayidid_counts_v1";
+const K_ANON = 5;
+
+const MOCK_DATA = {
+  "Consensual sex with partner": { "India": 24, "USA": 18, "Japan": 4, "Germany": 9, "Brazil": 12 },
+  "Masturbation": { "India": 37, "USA": 22, "Japan": 15, "Germany": 7, "Brazil": 5 },
+  "Kissing / Making out": { "India": 8, "USA": 14, "Japan": 3, "Germany": 6, "Brazil": 11 },
+  "Sexting / Erotic messaging": { "India": 5, "USA": 3, "Japan": 1, "Germany": 2, "Brazil": 0 },
+  "Porn consumption (watching)": { "India": 12, "USA": 28, "Japan": 9, "Germany": 4, "Brazil": 7 }
+};
+
+function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    const seed = { counts: MOCK_DATA };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+    return seed;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed.counts) parsed.counts = {};
+    return parsed;
+  } catch {
+    const seed = { counts: MOCK_DATA };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+    return seed;
+  }
+}
+function saveState(s){localStorage.setItem(STORAGE_KEY,JSON.stringify(s));}
+function ensureActivityCountries(s,a){if(!s.counts[a])s.counts[a]={};for(const c of COUNTRIES){if(!(c in s.counts[a]))s.counts[a][c]=0;}}
+
+const actSel=document.getElementById('activity'),countrySel=document.getElementById('country');
+const submitBtn=document.getElementById('submitBtn'),resetBtn=document.getElementById('resetBtn');
+const valMsg=document.getElementById('validation');
+const chartPanel=document.getElementById('chartPanel'),chosenDisp=document.getElementById('chosenActivityDisplay');
+const actList=document.getElementById('activityList'),bars=document.getElementById('barsContainer'),emptyHint=document.getElementById('emptyHint');
+const closeBtn=document.getElementById('closeChart'),backBtn=document.getElementById('backBtn');
+let state=loadState();
+
+actSel.innerHTML=`<option value="">Choose an activity</option>`+ACTIVITIES.map(a=>`<option>${a}</option>`).join('');
+countrySel.innerHTML=`<option value="">Choose your country</option>`+COUNTRIES.map(c=>`<option>${c}</option>`).join('');
+actList.innerHTML=ACTIVITIES.map(a=>`<div class="activity-item" data-act="${a}">${a}</div>`).join('');
+
+function getTop3(a){const x=Object.entries(state.counts[a]||{}).map(([c,n])=>({c,n})).sort((A,B)=>B.n-A.n);return x.slice(0,3).map(i=>i.c);}
+function renderBars(a){
+  chosenDisp.textContent=a; ensureActivityCountries(state,a);
+  const arr=Object.entries(state.counts[a]||{}).map(([c,n])=>({c,n})).sort((x,y)=>x.n-y.n);
+  const top3=getTop3(a),max=Math.max(...arr.map(x=>x.n),1); bars.innerHTML='';
+  const tot=arr.reduce((s,x)=>s+x.n,0); if(tot===0)emptyHint.classList.remove('hidden'); else emptyHint.classList.add('hidden');
+  for(const i of arr){
+    const row=document.createElement('div');row.className='flex items-center gap-4';
+    const left=document.createElement('div');left.className='w-28 sm:w-40 text-sm sm:text-base text-gray-700';left.textContent=i.c;
+    const wrap=document.createElement('div');wrap.className='flex-1';
+    if(i.n<K_ANON){
+      const note=document.createElement('div');note.className='text-sm text-gray-500 italic bg-gray-50 rounded-md px-3 py-2';
+      note.textContent='Not enough data to display';wrap.appendChild(note);
+    } else {
+      const barW=document.createElement('div');barW.className='bg-gray-100 rounded-full px-2 py-2';
+      const bar=document.createElement('div');bar.className='bar';
+      const wPerc=Math.max((i.n/max)*100,6);bar.style.width=wPerc+'%';
+      const pos=top3.indexOf(i.c);
+      if(pos===0)bar.classList.add('grad-1'); else if(pos===1)bar.classList.add('grad-2'); else if(pos===2)bar.classList.add('grad-3');
+      barW.appendChild(bar);wrap.appendChild(barW);
+    }
+    const cnt=document.createElement('div');cnt.className='w-16 text-right text-sm sm:text-base text-gray-800 font-medium ml-3';
+    cnt.textContent=i.n>=K_ANON?i.n:'-';
+    row.append(left,wrap,cnt);bars.appendChild(row);
+  }
+}
+function showChart(){chartPanel.classList.remove('hidden');} function hideChart(){chartPanel.classList.add('hidden');}
+
+submitBtn.onclick=()=>{
+  const a=actSel.value,c=countrySel.value;
+  if(!a||!c){valMsg.classList.remove('hidden');setTimeout(()=>valMsg.classList.add('hidden'),2500);return;}
+  if(!state.counts[a])state.counts[a]={}; if(!state.counts[a][c])state.counts[a][c]=0; state.counts[a][c]++;
+  saveState(state); renderBars(a); showChart(); setTimeout(()=>chartPanel.scrollIntoView({behavior:'smooth'}),120);
+  submitBtn.textContent='Saved ✓'; submitBtn.disabled=true; setTimeout(()=>{submitBtn.textContent='Submit';submitBtn.disabled=false;},900);
+};
+
+chosenDisp.onclick=()=>toggleList();
+function toggleList(){actList.classList.toggle('hidden');}
+actList.onclick=e=>{
+  const i=e.target.closest('.activity-item'); if(!i)return;
+  actList.classList.add('hidden'); renderBars(i.dataset.act);
+};
+
+resetBtn.onclick=()=>{if(!confirm('Reset all local counts?'))return;localStorage.removeItem(STORAGE_KEY);state=loadState();hideChart();};
+closeBtn.onclick=()=>hideChart();
+backBtn.onclick=()=>{hideChart();actSel.value='';countrySel.value='';};
+
+(function init(){for(const a of ACTIVITIES)ensureActivityCountries(state,a);hideChart();})();
+</script>
+
+</body>
+</html>
