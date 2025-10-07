@@ -52,7 +52,7 @@
         <select id="activity"
           class="inline-select appearance-none bg-transparent text-blue-600 font-bold underline focus:outline-none cursor-pointer mx-2">
           <option value="">Choose an activity</option>
-        </select>
+        </select><br>
         and I am from
         <select id="country"
           class="inline-select appearance-none bg-transparent text-green-600 font-bold underline focus:outline-none cursor-pointer mx-2">
@@ -63,6 +63,7 @@
       <div class="flex items-center gap-4 mt-4">
         <button id="submitBtn" class="bg-gray-900 text-white px-5 py-2 rounded-lg text-base hover:bg-gray-800">Submit</button>
         <button id="resetBtn" class="bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200">Reset Data</button>
+        <br>
         <p class="text-sm text-gray-600 ml-4">
           Counts stored locally (demo). Choose both fields and click Submit to see country-wise counts.
         </p>
@@ -118,11 +119,11 @@ const STORAGE_KEY = "todayidid_counts_v1";
 const K_ANON = 5;
 
 const MOCK_DATA = {
-  "Consensual sex with partner": { "India": 24, "USA": 18, "Japan": 4, "Germany": 9, "Brazil": 12 },
-  "Masturbation": { "India": 37, "USA": 22, "Japan": 15, "Germany": 7, "Brazil": 5 },
-  "Kissing / Making out": { "India": 8, "USA": 14, "Japan": 3, "Germany": 6, "Brazil": 11 },
-  "Sexting / Erotic messaging": { "India": 5, "USA": 3, "Japan": 1, "Germany": 2, "Brazil": 0 },
-  "Porn consumption (watching)": { "India": 12, "USA": 28, "Japan": 9, "Germany": 4, "Brazil": 7 }
+  "Walk": { "India": 24, "USA": 18, "Japan": 4, "Germany": 9, "Brazil": 12 },
+  "Run": { "India": 37, "USA": 22, "Japan": 15, "Germany": 7, "Brazil": 5 },
+  "Kiss": { "India": 2, "USA": 2, "Japan": 3, "Germany": 6, "Brazil": 11 },
+  "Workout": { "India": 5, "USA": 3, "Japan": 1, "Germany": 2, "Brazil": 0 },
+  "Read": { "India": 12, "USA": 28, "Japan": 9, "Germany": 4, "Brazil": 7 }
 };
 
 function loadState() {
